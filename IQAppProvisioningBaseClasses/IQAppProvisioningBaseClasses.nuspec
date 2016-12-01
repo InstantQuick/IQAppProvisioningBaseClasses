@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<package >
+  <metadata>
+    <id>InstantQuick.SharePoint.Provisioning</id>
+    <version>$version$</version>
+    <title>InstantQuick SharePoint Provisioning</title>
+    <authors>DougWare</authors>
+    <owners>DougWare</owners>
+    <licenseUrl>https://github.com/InstantQuick/InstantQuick-SharePoint-Provisioning/blob/master/LICENSE</licenseUrl>
+    <projectUrl>https://github.com/InstantQuick/InstantQuick-SharePoint-Provisioning</projectUrl>
+    <iconUrl>https://avatars2.githubusercontent.com/u/20448352</iconUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>CSOM based provisioning library for SharePoint 2013, 2016, and SharePoint Online</description>
+    <releaseNotes>Initial package</releaseNotes>
+    <copyright>Copyright 2016</copyright>
+    <tags>SharePoint Provisioning sharepoint provision CSOM</tags>
+  </metadata>
+</package>

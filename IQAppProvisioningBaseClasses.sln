@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 14
+VisualStudioVersion = 14.0.25420.1
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IQAppProvisioningBaseClasses", "IQAppProvisioningBaseClasses\IQAppProvisioningBaseClasses.csproj", "{E9667BA1-F246-423D-B3E1-661F60BC6BB9}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		CloudKhanPublish|Any CPU = CloudKhanPublish|Any CPU
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{E9667BA1-F246-423D-B3E1-661F60BC6BB9}.CloudKhanPublish|Any CPU.ActiveCfg = CloudKhanPublish|Any CPU
+		{E9667BA1-F246-423D-B3E1-661F60BC6BB9}.CloudKhanPublish|Any CPU.Build.0 = CloudKhanPublish|Any CPU
+		{E9667BA1-F246-423D-B3E1-661F60BC6BB9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E9667BA1-F246-423D-B3E1-661F60BC6BB9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E9667BA1-F246-423D-B3E1-661F60BC6BB9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E9667BA1-F246-423D-B3E1-661F60BC6BB9}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

@@ -244,8 +244,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
-    <None Include="InstantQuick.SharePoint.Provisioning.1.0.6177.28780.nupkg" />
-    <None Include="InstantQuick.SharePoint.Provisioning.1.0.6179.26575.nupkg" />
     <None Include="IQAppProvisioningBaseClasses.nuspec" />
     <None Include="packages.config">
       <SubType>Designer</SubType>

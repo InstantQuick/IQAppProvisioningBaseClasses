@@ -141,7 +141,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
             ctx.ExecuteQueryRetry();
 
             var defaultValue = taxonomyField.DefaultValue;
-            if (defaultValue != null)
+            if (!string.IsNullOrEmpty(defaultValue))
             {
                 var defaultValueToken = $"{{@DefaultValue:{defaultValue.GetInnerText(";#", "|")}}}";
                 //schemaXml = schemaXml.Replace(defaultValue, defaultValueToken);

@@ -10,11 +10,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
     {
         private readonly Web _web;
         private ClientContext _ctx;
-
-        public CustomActionManager()
-        {
-        }
-
+        
         public CustomActionManager(ClientContext ctx) : this(ctx, ctx.Web)
         {
         }
@@ -129,7 +125,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
                         {"RootFolderUrl", list.RootFolder.ServerRelativeUrl}
                     };
 
-                    DeleteAll();
+                    DeleteAll(list);
                     foreach (var userCustomActionCreator in CustomActions.Values)
                     {
                         var newUserCustomAction = list.UserCustomActions.Add();
@@ -141,8 +137,6 @@ namespace IQAppProvisioningBaseClasses.Provisioning
                         newUserCustomAction.ImageUrl = DoTokenReplacement(userCustomActionCreator.ImageUrl,
                             listUserCustomActionReplacementTokens);
                         newUserCustomAction.Location = userCustomActionCreator.Location;
-                        newUserCustomAction.RegistrationId = list.Id.ToString();
-                        newUserCustomAction.RegistrationType = userCustomActionCreator.RegistrationType;
                         newUserCustomAction.ScriptBlock = DoTokenReplacement(userCustomActionCreator.ScriptBlock,
                             listUserCustomActionReplacementTokens);
                         newUserCustomAction.ScriptSrc = DoTokenReplacement(userCustomActionCreator.ScriptSrc,
@@ -150,6 +144,9 @@ namespace IQAppProvisioningBaseClasses.Provisioning
                         newUserCustomAction.Sequence = userCustomActionCreator.Sequence;
                         newUserCustomAction.Url = DoTokenReplacement(userCustomActionCreator.Url,
                             listUserCustomActionReplacementTokens);
+                        newUserCustomAction.CommandUIExtension =
+                            DoTokenReplacement(userCustomActionCreator.CommandUIExtension,
+                                listUserCustomActionReplacementTokens);
                         newUserCustomAction.Update();
                     }
 
@@ -284,6 +281,34 @@ namespace IQAppProvisioningBaseClasses.Provisioning
                     OnNotify(ProvisioningNotificationLevels.Verbose,
                         "Removing site custom action " + siteCustomActions[i].Title);
                     siteCustomActions[i].DeleteObject();
+                }
+            }
+
+            _ctx.ExecuteQueryRetry();
+        }
+
+        public virtual void DeleteAll(List list)
+        {
+            if (CustomActions == null || CustomActions.Count == 0) return;
+
+            var listCustomActions = list.UserCustomActions;
+            _ctx.Load(listCustomActions);
+            _ctx.ExecuteQueryRetry();
+
+            for (var i = listCustomActions.Count - 1; i >= 0; i--)
+            {
+                if (listCustomActions[i].Title != null && CustomActions.ContainsKey(listCustomActions[i].Title))
+                {
+                    OnNotify(ProvisioningNotificationLevels.Verbose,
+                        "Removing web custom action " + listCustomActions[i].Title);
+                    listCustomActions[i].DeleteObject();
+                }
+                //Delete the old loader if present
+                else if (string.IsNullOrEmpty(listCustomActions[i].Title) &&
+                         !string.IsNullOrEmpty(listCustomActions[i].ScriptBlock) &&
+                         listCustomActions[i].ScriptBlock.Contains("$LAB.script"))
+                {
+                    listCustomActions[i].DeleteObject();
                 }
             }
 

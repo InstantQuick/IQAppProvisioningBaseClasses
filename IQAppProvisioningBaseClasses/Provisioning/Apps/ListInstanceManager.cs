@@ -50,8 +50,8 @@ namespace IQAppProvisioningBaseClasses.Provisioning
                 BindContentTypes();
                 ConfigureFieldsAndViews();
                 ApplySecurity();
-                FinalizeConfigurations();
                 AddAndDeleteListItems();
+                FinalizeConfigurations();
             }
             catch (Exception ex)
             {

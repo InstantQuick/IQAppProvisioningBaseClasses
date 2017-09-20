@@ -127,7 +127,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
                 }
                 catch
                 {
-                   //Ignore
+                    //Ignore
                 }
             }
         }
@@ -220,7 +220,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
                 {
                     if (!ViewExists(key))
                     {
-                        var vcInfo = new ViewCreationInformation {Title = key};
+                        var vcInfo = new ViewCreationInformation { Title = key };
                         var view = List.Views.Add(vcInfo);
                         view.ListViewXml = ListViewSchemas[key];
                         view.Update();
@@ -302,7 +302,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
             }
             if (CustomActionCreators != null && CustomActionCreators.Count > 0)
             {
-                var customActionManager = new CustomActionManager {CustomActions = CustomActionCreators};
+                var customActionManager = new CustomActionManager(ctx) { CustomActions = CustomActionCreators };
                 customActionManager.CreateAll(ctx, List);
             }
         }

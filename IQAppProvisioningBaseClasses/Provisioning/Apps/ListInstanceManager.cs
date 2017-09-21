@@ -7,6 +7,7 @@ using IQAppProvisioningBaseClasses.Events;
 using Microsoft.SharePoint.Client;
 using Microsoft.SharePoint.Client.Taxonomy;
 using SharePointUtility;
+using IQAppProvisioningBaseClasses.Utility;
 
 namespace IQAppProvisioningBaseClasses.Provisioning
 {
@@ -148,7 +149,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
             if (sortedCreators.FirstOrDefault(c => c.ListItems.FirstOrDefault(li => li.FieldValues.FirstOrDefault(fv => fv.FieldType != null && fv.FieldType.StartsWith("TaxonomyField")) != null) != null) != null)
             {
                 taxonomySession = TaxonomySession.GetTaxonomySession(tempCtx);
-                termStore = taxonomySession.GetDefaultSiteCollectionTermStore();
+                termStore = TermStoreUtility.GetTermStore(tempCtx, taxonomySession);
             }
 
             foreach (var creator in sortedCreators)

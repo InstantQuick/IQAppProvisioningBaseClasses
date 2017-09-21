@@ -3,6 +3,7 @@ using System.Linq;
 using Microsoft.SharePoint.Client;
 using Microsoft.SharePoint.Client.Taxonomy;
 using System.Collections.Generic;
+using IQAppProvisioningBaseClasses.Utility;
 
 namespace IQAppProvisioningBaseClasses.Provisioning
 {
@@ -161,7 +162,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
                 taxonomyField.AnchorId != default(Guid))
             {
                 var taxonomySession = TaxonomySession.GetTaxonomySession(ctx);
-                var termStore = taxonomySession.GetDefaultSiteCollectionTermStore();
+                var termStore = TermStoreUtility.GetTermStore(ctx, taxonomySession);
                 TermSet termSet = null;
                 Term anchorTerm = null;
 
@@ -280,7 +281,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
             if (foundTokens.Count == 0) return schemaXml;
 
             var taxonomySession = TaxonomySession.GetTaxonomySession(ctx);
-            var termStore = taxonomySession.GetDefaultSiteCollectionTermStore();
+            var termStore = TermStoreUtility.GetTermStore(ctx, taxonomySession);
             ctx.Load(termStore, ts => ts.Id);
             ctx.ExecuteQuery();
 

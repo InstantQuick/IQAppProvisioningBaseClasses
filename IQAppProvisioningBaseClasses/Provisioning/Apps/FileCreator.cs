@@ -10,6 +10,7 @@ using Microsoft.SharePoint.Client.Taxonomy;
 using Microsoft.SharePoint.Client.WebParts;
 using File = Microsoft.SharePoint.Client.File;
 using static IQAppProvisioningBaseClasses.Constants;
+using IQAppProvisioningBaseClasses.Utility;
 
 namespace IQAppProvisioningBaseClasses.Provisioning
 {
@@ -275,7 +276,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
             if (ListItemFieldValues.FirstOrDefault(fv => fv.FieldType != null &&  fv.FieldType.StartsWith("TaxonomyField")) != null)
             {
                 taxonomySession = TaxonomySession.GetTaxonomySession(tempCtx);
-                termStore = taxonomySession.GetDefaultSiteCollectionTermStore();
+                termStore = TermStoreUtility.GetTermStore(tempCtx, taxonomySession);
             }
 
             var lookupFields = library.Fields.Where(f => f.FieldTypeKind == FieldType.Lookup && ListItemFieldValues.FirstOrDefault(fv => fv.FieldName == f.InternalName) != null);

@@ -11,7 +11,7 @@
     <iconUrl>https://avatars2.githubusercontent.com/u/20448352</iconUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>CSOM based provisioning library for SharePoint 2013, 2016, and SharePoint Online</description>
-    <releaseNotes>Initial package</releaseNotes>
+    <releaseNotes>Improved termstore handling</releaseNotes>
     <copyright>Copyright 2016</copyright>
     <tags>SharePoint Provisioning sharepoint provision CSOM</tags>
   </metadata>

@@ -168,8 +168,8 @@ namespace IQAppProvisioningBaseClasses.Provisioning
 
                 if (taxonomyField.TermSetId != default(Guid))
                 {
-                    termSet = termStore.GetTermSet(taxonomyField.TermSetId); 
-                    ctx.Load(termSet, ts => ts.Name);    
+                    termSet = termStore.GetTermSet(taxonomyField.TermSetId);
+                    ctx.Load(termSet, ts => ts.Name);
                 }
                 if (taxonomyField.AnchorId != default(Guid))
                 {
@@ -289,7 +289,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
 
             schemaXml = schemaXml.Replace("{@SspId}", termStore.Id.ToString());
             var termSetName = schemaXml.GetInnerText("{@TermSet:", "}");
-            var termSets = termStore.GetTermSetsByName(termSetName, (int) ctx.Web.Language);
+            var termSets = termStore.GetTermSetsByName(termSetName, (int)ctx.Web.Language);
             ctx.Load(termSets, ts => ts.Include(t => t.Id));
             ctx.ExecuteQueryRetry();
 
@@ -298,18 +298,23 @@ namespace IQAppProvisioningBaseClasses.Provisioning
                 throw new InvalidOperationException($"Unable to find term set {termSetName}.");
             }
 
-            schemaXml = schemaXml.Replace($"{{@TermSet:{termSetName}}}", termSets[0].Id.ToString());
-            terms = termSets[0].GetAllTerms();
+            var termSet = GetCorrectTermSet(ctx, schemaXml, termSets);
+            schemaXml = schemaXml.Replace($"{{@TermSet:{termSetName}}}", termSet.Id.ToString());
+            terms = termSet.GetAllTerms();
             ctx.Load(terms);
             ctx.ExecuteQueryRetry();
             if (foundTokens.Contains("{@AnchorTermId:"))
             {
                 var anchorTermName = schemaXml.GetInnerText("{@AnchorTermId:", "}");
                 var foundAnchorTerm = terms.FirstOrDefault(t => t.Name == anchorTermName);
-                ctx.ExecuteQuery();
                 if (foundAnchorTerm != null)
                 {
                     schemaXml = schemaXml.Replace($"{{@AnchorTermId:{anchorTermName}}}", foundAnchorTerm.Id.ToString());
+                }
+                else
+                {
+                    //Remove the token. It will break SharePoint!
+                    schemaXml = schemaXml.Replace($"{{@AnchorTermId:{anchorTermName}}}", "");
                 }
             }
 
@@ -317,15 +322,57 @@ namespace IQAppProvisioningBaseClasses.Provisioning
             {
                 var defaultValueTermName = schemaXml.GetInnerText("{@DefaultValue:", "}");
                 var foundDefaultTerm = terms.FirstOrDefault(t => t.Name == defaultValueTermName);
-                ctx.ExecuteQueryRetry();
                 if (foundDefaultTerm != null)
                 {
                     schemaXml = schemaXml.Replace($"{{@DefaultValue:{defaultValueTermName}}}",
                         $"-1;#{defaultValueTermName}|{foundDefaultTerm.Id.ToString()}");
                 }
+                else
+                {
+                    schemaXml = schemaXml.Replace($"{{@DefaultValue:{defaultValueTermName}}}","");
+                }
             }
 
             return schemaXml;
+        }
+
+        private static TermSet GetCorrectTermSet(ClientContext ctx, string schemaXml, TermSetCollection termSets)
+        {
+            if (termSets.Count == 1) return termSets[0];
+            if (termSets.Count == 0) return null;
+
+            var anchorTermName = schemaXml.GetInnerText("{@AnchorTermId:", "}");
+            var defaultValueTermName = schemaXml.GetInnerText("{@DefaultValue:", "}");
+
+            foreach(var termSet in termSets)
+            {
+                var terms = termSet.GetAllTerms();
+                ctx.Load(terms);
+                ctx.ExecuteQueryRetry();
+
+                if (!string.IsNullOrEmpty(anchorTermName) && !string.IsNullOrEmpty(defaultValueTermName))
+                {
+                    if(terms.FirstOrDefault(t => t.Name == anchorTermName) != null && terms.FirstOrDefault(t => t.Name == defaultValueTermName) != null)
+                    {
+                        return termSet;
+                    }
+                }
+                else if(!string.IsNullOrEmpty(anchorTermName))
+                {
+                    if (terms.FirstOrDefault(t => t.Name == anchorTermName) != null)
+                    {
+                        return termSet;
+                    }
+                }
+                else 
+                {
+                    if (terms.FirstOrDefault(t => t.Name == defaultValueTermName) != null)
+                    {
+                        return termSet;
+                    }
+                }
+            }
+            return null;
         }
     }
 }

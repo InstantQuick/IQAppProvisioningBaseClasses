@@ -343,8 +343,9 @@ namespace IQAppProvisioningBaseClasses.Provisioning
 
             var anchorTermName = schemaXml.GetInnerText("{@AnchorTermId:", "}");
             var defaultValueTermName = schemaXml.GetInnerText("{@DefaultValue:", "}");
+            if (string.IsNullOrEmpty(anchorTermName) && string.IsNullOrEmpty(defaultValueTermName)) return termSets[0];
 
-            foreach(var termSet in termSets)
+            foreach (var termSet in termSets)
             {
                 var terms = termSet.GetAllTerms();
                 ctx.Load(terms);

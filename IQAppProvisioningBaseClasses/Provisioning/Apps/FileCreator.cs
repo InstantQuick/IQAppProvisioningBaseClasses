@@ -387,7 +387,8 @@ namespace IQAppProvisioningBaseClasses.Provisioning
                     }
                     else
                     {
-                        var terms = termSets[0].GetAllTerms();
+                        var termSet = GetCorrectTermSet(ctx, termNames[0], termSets);
+                        var terms = termSet.GetAllTerms();
                         tempCtx.Load(terms);
                         tempCtx.ExecuteQueryRetry();
 
@@ -441,6 +442,52 @@ namespace IQAppProvisioningBaseClasses.Provisioning
                 }
             }
             item.Update();
+        }
+
+        private static TermSet GetCorrectTermSet(ClientContext ctx, string termName, TermSetCollection termSets)
+        {
+            //This is a challenge when there is more than one 
+            if (termSets.Count == 1) return termSets[0];
+            if (termSets.Count == 0) return null;
+
+            TermSet bestMatch = null;
+            var maxTermCount = 0;
+
+            foreach (var termSet in termSets)
+            {
+                var terms = termSet.GetAllTerms();
+                ctx.Load(terms);
+                ctx.Load(termSet.Group, g => g.Name);
+                try
+                {
+                    ctx.ExecuteQuery();
+
+                    if (!termSet.Group.Name.StartsWith("Site Collection"))
+                    {
+
+                        if (!string.IsNullOrEmpty(termName))
+                        {
+                            if (terms.FirstOrDefault(t => t.Name == termName) != null)
+                            {
+                                return termSet;
+                            }
+                        }
+                        else
+                        {
+                            if (terms.Count > maxTermCount || bestMatch == null)
+                            {
+                                maxTermCount = terms.Count;
+                                bestMatch = termSet;
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+                    //ignored
+                }
+            }
+            return bestMatch;
         }
 
         protected void AddListViewWebPart(ClientContext ctx, Web web, string resourceKey, string title, string zoneId, int order, string listName)

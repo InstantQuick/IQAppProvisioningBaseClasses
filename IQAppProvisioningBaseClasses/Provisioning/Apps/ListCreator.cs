@@ -53,18 +53,18 @@ namespace IQAppProvisioningBaseClasses.Provisioning
 
         public virtual List<RemoteEventRegistrationCreator> RemoteEventRegistrationCreators { get; set; }
 
-        public virtual void ConfigureBeforeContentTypeBinding(ClientContext ctx)
+        public virtual void ConfigureBeforeContentTypeBinding(ClientContext ctx, Web web)
         {
             if (CorrespondingLookupFieldName != null)
             {
-                CorrespondingLookupField = ctx.Web.Fields.GetByInternalNameOrTitle(CorrespondingLookupFieldName);
+                CorrespondingLookupField = web.Fields.GetByInternalNameOrTitle(CorrespondingLookupFieldName);
                 Utility.AttachListToLookup(ctx, CorrespondingLookupField, List);
             }
             if (CorrespondingLookupFieldNames != null && CorrespondingLookupFieldNames.Count > 0)
             {
                 foreach (var fieldName in CorrespondingLookupFieldNames)
                 {
-                    var fieldToAttach = ctx.Web.Fields.GetByInternalNameOrTitle(fieldName);
+                    var fieldToAttach = web.Fields.GetByInternalNameOrTitle(fieldName);
                     Utility.AttachListToLookup(ctx, fieldToAttach, List);
                 }
             }
@@ -93,7 +93,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
                 {
                     if (!excludeFields.Contains(field))
                     {
-                        CleanupTaxonomyHiddenField(ctx, AdditionalFields[field], excludeFields);
+                        CleanupTaxonomyHiddenField(ctx, web, AdditionalFields[field], excludeFields);
                         AddFieldAsXml(field, FieldTokenizer.DoTokenReplacement(ctx, AdditionalFields[field]));
                     }
                 }
@@ -101,7 +101,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
             }
         }
 
-        private void CleanupTaxonomyHiddenField(ClientContext ctx, string field, List<string> excludeFields)
+        private void CleanupTaxonomyHiddenField(ClientContext ctx, Web web, string field, List<string> excludeFields)
         {
             var fieldType = field.GetXmlAttribute("Type");
             if (fieldType.StartsWith("TaxonomyField"))
@@ -132,9 +132,9 @@ namespace IQAppProvisioningBaseClasses.Provisioning
             }
         }
 
-        public virtual void ConfigureFieldsAndViews(ClientContext ctx)
+        public virtual void ConfigureFieldsAndViews(ClientContext ctx, Web web)
         {
-            RefreshList(ctx);
+            RefreshList(ctx, web);
 
             if ((IndexFields != null && IndexFields.Count > 0) || (RequiredFields != null && RequiredFields.Count > 0) ||
                 EnforceUniqueFields != null && EnforceUniqueFields.Count > 0)
@@ -163,7 +163,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
                     }
                 }
                 ctx.ExecuteQueryRetry();
-                RefreshList(ctx);
+                RefreshList(ctx, web);
             }
             if (HiddenFormFields != null && HiddenFormFields.Count > 0)
             {
@@ -172,7 +172,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
                     Utility.HideFieldOnAllForms(List, fieldName);
                 }
                 ctx.ExecuteQueryRetry();
-                RefreshList(ctx);
+                RefreshList(ctx, web);
             }
             if (DisplayFormOnlyFields != null && DisplayFormOnlyFields.Count > 0)
             {
@@ -181,13 +181,13 @@ namespace IQAppProvisioningBaseClasses.Provisioning
                     Utility.ShowOnDisplayFormOnly(List, field);
                 }
                 ctx.ExecuteQueryRetry();
-                RefreshList(ctx);
+                RefreshList(ctx, web);
             }
             if (!string.IsNullOrEmpty(TitleFieldDisplayName))
             {
                 Utility.SetTitleFieldDisplayName(List, TitleFieldDisplayName);
                 ctx.ExecuteQueryRetry();
-                RefreshList(ctx);
+                RefreshList(ctx, web);
             }
             if (FieldDisplayNameOverrides != null && FieldDisplayNameOverrides.Count > 0)
             {
@@ -196,7 +196,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
                     Utility.SetFieldDisplayName(List, field, FieldDisplayNameOverrides[field]);
                 }
                 ctx.ExecuteQueryRetry();
-                RefreshList(ctx);
+                RefreshList(ctx, web);
             }
 
             if (!string.IsNullOrEmpty(DefaultViewSchemaXml) || !string.IsNullOrEmpty(DefaultViewTitle))
@@ -258,12 +258,12 @@ namespace IQAppProvisioningBaseClasses.Provisioning
             }
         }
 
-        private void RefreshList(ClientContext ctx)
+        private void RefreshList(ClientContext ctx, Web web)
         {
             //Reload fields
             //TODO: This is a hack to fix a bug in server version 16.0.3417.1200
             //Dump the List object and reload it
-            var refreshedList = ctx.Web.Lists.GetByTitle(List.Title);
+            var refreshedList = web.Lists.GetByTitle(List.Title);
             var hackWorked = false;
             var retryCounter = 0;
             do
@@ -291,7 +291,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
             List = refreshedList;
         }
 
-        public virtual void FinalizeConfiguration(ClientContext ctx)
+        public virtual void FinalizeConfiguration(ClientContext ctx, Web web)
         {
             if (!string.IsNullOrEmpty(ContentType)) ListInfo = new ListInfo(List, ContentType);
             if (NoCrawl || Hidden)
@@ -309,15 +309,20 @@ namespace IQAppProvisioningBaseClasses.Provisioning
 
         public virtual void UpdateDocumentTemplate(ClientContext ctx)
         {
+            UpdateDocumentTemplate(ctx, ctx.Web);
+        }
+
+        public virtual void UpdateDocumentTemplate(ClientContext ctx, Web web)
+        {
             if (DocumentTemplateUrl != null)
             {
-                List = ctx.Web.Lists.GetByTitle(Title);
+                List = web.Lists.GetByTitle(Title);
                 List.ContentTypesEnabled = true;
                 List.Update();
                 ctx.Load(List.ContentTypes);
                 ctx.ExecuteQueryRetry();
                 List.ContentTypes[0].DocumentTemplate = DocumentTemplateUrl.Replace("{@WebServerRelativeUrl}",
-                    ctx.Web.ServerRelativeUrl);
+                    web.ServerRelativeUrl);
                 List.ContentTypes[0].Update(false);
                 ctx.ExecuteQueryRetry();
             }

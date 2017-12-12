@@ -11,7 +11,7 @@
     <iconUrl>https://avatars2.githubusercontent.com/u/20448352</iconUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>CSOM based provisioning library for SharePoint 2013, 2016, and SharePoint Online</description>
-    <releaseNotes>Improved termstore handling</releaseNotes>
+    <releaseNotes>Improved handling of scenarios targeting webs not tied to context. Specifically for mixed appweb hostweb scenarios.</releaseNotes>
     <copyright>Copyright 2016</copyright>
     <tags>SharePoint Provisioning sharepoint provision CSOM</tags>
   </metadata>

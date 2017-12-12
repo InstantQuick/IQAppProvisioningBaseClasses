@@ -19,10 +19,10 @@ namespace IQAppProvisioningBaseClasses.Provisioning
         public virtual Dictionary<string, ContentTypeCreator> Creators { get; set; }
         public virtual List<string> OrderedDeletionList { get; } = new List<string>();
 
-        public void CreateAll(ClientContext ctx)
+        public void CreateAll(ClientContext ctx, Web web)
         {
             _ctx = ctx;
-            _targetWeb = _ctx.Web;
+            _targetWeb = web;
             if (Creators != null && Creators.Count > 0)
             {
                 try
@@ -40,12 +40,17 @@ namespace IQAppProvisioningBaseClasses.Provisioning
             }
         }
 
-        public void DeleteAll(ClientContext ctx)
+        public void CreateAll(ClientContext ctx)
+        {
+            CreateAll(ctx, ctx.Web);
+        }
+
+        public void DeleteAll(ClientContext ctx, Web web)
         {
             if (Creators != null && Creators.Count > 0)
             {
                 _ctx = ctx;
-                _targetWeb = _ctx.Web;
+                _targetWeb = web;
 
                 _ctx.Load(_targetWeb.ContentTypes,
                     c => c.Include(contentType => contentType.Name));
@@ -79,6 +84,11 @@ namespace IQAppProvisioningBaseClasses.Provisioning
             }
         }
 
+        public void DeleteAll(ClientContext ctx)
+        {
+            DeleteAll(ctx, ctx.Web);
+        }
+
         private void GetExistingFieldsAndContentTypes()
         {
             foreach (var item in Creators.Values)
@@ -89,10 +99,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
                     {
                         if (!_siteFields.Keys.Contains(fieldName))
                         {
-                            _siteFields[fieldName] = null;
-
-                            //Should not use RootWeb here in case some doofus created a conflict elsewhere
-                            _siteFields[fieldName] = _ctx.Web.AvailableFields.GetByInternalNameOrTitle(fieldName);
+                            _siteFields[fieldName] = _targetWeb.AvailableFields.GetByInternalNameOrTitle(fieldName);
                         }
                     }
                 }
@@ -100,13 +107,13 @@ namespace IQAppProvisioningBaseClasses.Provisioning
 
             //Should not use RootWeb here in case some doofus created a conflict elsewhere
             //Get all of the content types. Initialize the Name property
-            _ctx.Load(_ctx.Web.AvailableContentTypes,
+            _ctx.Load(_targetWeb.AvailableContentTypes,
                 c => c.Include
                     (contentType => contentType.Name, contentType => contentType.FieldLinks));
 
             _ctx.ExecuteQueryRetry();
 
-            foreach (var contentType in _ctx.Web.AvailableContentTypes)
+            foreach (var contentType in _targetWeb.AvailableContentTypes)
             {
                 _existingContentTypes[contentType.Name] = contentType;
             }
@@ -125,7 +132,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
             }
 
             //Associate the loaded instances with the list items
-            foreach (var contentType in _ctx.Web.AvailableContentTypes)
+            foreach (var contentType in _targetWeb.AvailableContentTypes)
             {
                 if (parentTypes.ContainsKey(contentType.Name))
                 {

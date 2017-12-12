@@ -547,7 +547,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
         {
             foreach (var creator in Creators.Values)
             {
-                creator.ConfigureBeforeContentTypeBinding(_ctx);
+                creator.ConfigureBeforeContentTypeBinding(_ctx, _web);
             }
             _ctx.ExecuteQueryRetry();
         }
@@ -645,7 +645,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
             foreach (var creator in Creators.Values)
             {
                 OnNotify(ProvisioningNotificationLevels.Verbose, "Configuring fields and views for " + creator.Title);
-                creator.ConfigureFieldsAndViews(_ctx);
+                creator.ConfigureFieldsAndViews(_ctx, _web);
             }
         }
 
@@ -655,7 +655,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
             {
                 if (creator.List != null)
                 {
-                    creator.FinalizeConfiguration(_ctx);
+                    creator.FinalizeConfiguration(_ctx, _web);
                 }
             }
             _ctx.ExecuteQueryRetry();
@@ -667,7 +667,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
                 {
                     if (creator.List != null)
                     {
-                        creator.FinalizeConfiguration(_ctx);
+                        creator.FinalizeConfiguration(_ctx, _web);
                         if (creator.ListInfo != null)
                         {
                             listHelper.Add(creator.ListInfo);

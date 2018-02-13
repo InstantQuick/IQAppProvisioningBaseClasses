@@ -570,6 +570,8 @@ namespace IQAppProvisioningBaseClasses.Provisioning
                     v => v.Include
                         (view => view.Id, view => view.ViewFields, view => view.Title));
 
+                _ctx.ExecuteQueryRetry();
+
                 if (creator.ReplaceDefaultType)
                 {
                     var notFound = Enumerable.All(creator.List.ContentTypes, t => t.Name != creator.ContentType);

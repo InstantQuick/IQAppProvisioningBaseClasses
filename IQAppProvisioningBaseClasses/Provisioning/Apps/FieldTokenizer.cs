@@ -151,7 +151,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
 
             var taxonomyField = ctx.CastTo<TaxonomyField>(field);
             ctx.Load(taxonomyField);
-            ctx.ExecuteQuery();
+            ctx.ExecuteQueryRetry();
 
             var defaultValue = taxonomyField.DefaultValue;
             if (!string.IsNullOrEmpty(defaultValue))
@@ -182,7 +182,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
                 }
                 try
                 {
-                    ctx.ExecuteQuery();
+                    ctx.ExecuteQueryRetry();
                 }
                 catch
                 {
@@ -294,7 +294,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
             var taxonomySession = TaxonomySession.GetTaxonomySession(ctx);
             var termStore = TermStoreUtility.GetTermStore(ctx, taxonomySession);
             ctx.Load(termStore, ts => ts.Id);
-            ctx.ExecuteQuery();
+            ctx.ExecuteQueryRetry();
 
             schemaXml = schemaXml.Replace("{@SspId}", termStore.Id.ToString());
             var termSetName = schemaXml.GetInnerText("{@TermSet:", "}");
@@ -302,7 +302,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
             {
                 var termSets = termStore.GetTermSetsByName(termSetName, (int)web.Language);
                 ctx.Load(termSets, ts => ts.Include(t => t.Id, t => t.Name));
-                ctx.ExecuteQuery();
+                ctx.ExecuteQueryRetry();
 
                 if (termSets.Count == 0)
                 {
@@ -316,7 +316,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
                 schemaXml = schemaXml.Replace($"{{@TermSet:{termSetName}}}", termSet.Id.ToString());
                 var terms = termSet.GetAllTerms();
                 ctx.Load(terms);
-                ctx.ExecuteQuery();
+                ctx.ExecuteQueryRetry();
                 if (foundTokens.Contains("{@AnchorTermId:"))
                 {
                     var anchorTermName = schemaXml.GetInnerText("{@AnchorTermId:", "}");
@@ -353,7 +353,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
                 ctx.Load(termSet.Group, g => g.Name);
                 try
                 {
-                    ctx.ExecuteQuery();
+                    ctx.ExecuteQueryRetry();
 
                     if (!termSet.Group.Name.StartsWith("Site Collection"))
                     {

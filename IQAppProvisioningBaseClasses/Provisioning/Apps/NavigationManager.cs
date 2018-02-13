@@ -6,10 +6,12 @@ using Microsoft.SharePoint.Client;
 
 namespace IQAppProvisioningBaseClasses.Provisioning
 {
+    //TODO: Clean up and consolidate redundant token substitution code
     public class NavigationManager : ProvisioningManagerBase
     {
         private readonly ClientContext _ctx;
         private readonly Web _web;
+        private readonly Web _rootWeb;
 
         public NavigationManager(ClientContext ctx) : this(ctx, ctx.Web)
         {
@@ -19,7 +21,9 @@ namespace IQAppProvisioningBaseClasses.Provisioning
         {
             _ctx = ctx;
             _web = web;
+            _rootWeb = _ctx.Site.RootWeb;
             _ctx.Load(_web, w => w.ServerRelativeUrl, w => w.AppInstanceId);
+            _ctx.Load(_rootWeb, w => w.Url, w => w.ServerRelativeUrl);
             _ctx.Load(_web.Navigation, n => n.QuickLaunch, n => n.TopNavigationBar);
             _ctx.ExecuteQueryRetry();
         }
@@ -106,7 +110,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
                     IsExternal = node.IsExternal,
                     Url =
                         node.IsExternal
-                            ? node.Url.Replace("{@WebUrl}", _web.Url).Replace("{@WebServerRelativeUrl}", _web.ServerRelativeUrl)
+                            ? node.Url.Replace("{@WebUrl}", _web.Url).Replace("{@WebServerRelativeUrl}", _web.ServerRelativeUrl).Replace("{@SiteUrl}", _rootWeb.Url).Replace("{@SiteServerRelativeUrl}", _rootWeb.ServerRelativeUrl)
                             : GetUrl(node.Url)
                 };
                 if (node.AsLastNode)
@@ -130,9 +134,9 @@ namespace IQAppProvisioningBaseClasses.Provisioning
         private string GetUrl(string url)
         {
             var retVal = url;
-            if (retVal.Contains("{@WebUrl}") || retVal.Contains("{@WebServerRelativeUrl}"))
+            if (retVal.Contains("{@WebUrl}") || retVal.Contains("{@WebServerRelativeUrl}") || retVal.Contains("{@SiteUrl}") || retVal.Contains("{@SiteServerRelativeUrl}"))
             {
-                retVal = retVal.Replace("{@WebUrl}", _web.Url).Replace("{@WebServerRelativeUrl}", _web.ServerRelativeUrl);
+                retVal = retVal.Replace("{@WebUrl}", _web.Url).Replace("{@WebServerRelativeUrl}", _web.ServerRelativeUrl).Replace("{@SiteUrl}", _rootWeb.Url).Replace("{@SiteServerRelativeUrl}", _rootWeb.ServerRelativeUrl);
             }
             else if (_web.ServerRelativeUrl != "/") retVal = _web.ServerRelativeUrl + url;
             return retVal;

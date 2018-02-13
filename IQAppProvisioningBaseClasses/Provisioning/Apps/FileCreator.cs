@@ -14,6 +14,8 @@ using IQAppProvisioningBaseClasses.Utility;
 
 namespace IQAppProvisioningBaseClasses.Provisioning
 {
+    //TODO: Refactor this to only do the versioning motions when the target library has versioning!
+    //TODO: Refactor this to use the Tokenizer class and remove all the duplicate token substitution code!
     public class FileCreator
     {
         protected Dictionary<string, Guid> ViewMappings = new Dictionary<string, Guid>();
@@ -74,6 +76,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
             var hasListIdToken = fileText.Contains("{@ListId:");
             var hasListUrlToken = fileText.Contains("{@ListUrl:");
             var hasWebUrl = fileText.Contains("{@WebServerRelativeUrl}") || fileText.Contains("{@WebUrl}");
+            var hasSiteUrl = fileText.Contains("{@SiteServerRelativeUrl}") || fileText.Contains("{@SiteUrl}");
             var hasListContentType = fileText.Contains("{@ListContentType:");
 
             //This is a crude way to go about cooercing the version numbers
@@ -95,6 +98,12 @@ namespace IQAppProvisioningBaseClasses.Provisioning
             if (hasWebUrl)
             {
                 fileText = fileText.Replace("{@WebUrl}", web.Url).Replace("{@WebServerRelativeUrl}", web.ServerRelativeUrl);
+            }
+            if (hasSiteUrl)
+            {
+                var rootWeb = ctx.Site.RootWeb;
+                rootWeb.EnsureProperties(w => w.Url, w => w.ServerRelativeUrl);
+                fileText = fileText.Replace("{@SiteUrl}", rootWeb.Url).Replace("{@SiteServerRelativeUrl}", rootWeb.ServerRelativeUrl);
             }
             if (hasListContentType)
             {
@@ -247,6 +256,9 @@ namespace IQAppProvisioningBaseClasses.Provisioning
         {
             if (ListItemFieldValues == null || ListItemFieldValues.Count == 0) return;
 
+            var rootWeb = ctx.Site.RootWeb;
+            rootWeb.EnsureProperties(w => w.Url, w => w.ServerRelativeUrl);
+
             var specialTypes = new List<string>()
             {
                 "Lookup",
@@ -312,7 +324,9 @@ namespace IQAppProvisioningBaseClasses.Provisioning
                 {
                     item[fieldInfo.FieldName] =
                         fieldInfo.Value.Replace("{@WebUrl}", web.Url)
-                            .Replace("{@WebServerRelativeUrl}", web.ServerRelativeUrl);
+                            .Replace("{@WebServerRelativeUrl}", web.ServerRelativeUrl)
+                            .Replace("{@SiteUrl}", rootWeb.Url)
+                            .Replace("{@SiteServerRelativeUrl}", rootWeb.ServerRelativeUrl);
                 }
                 else if (fieldInfo.FieldType == "DateTime")
                 {
@@ -460,7 +474,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
                 ctx.Load(termSet.Group, g => g.Name);
                 try
                 {
-                    ctx.ExecuteQuery();
+                    ctx.ExecuteQueryRetry();
 
                     if (!termSet.Group.Name.StartsWith("Site Collection"))
                     {
@@ -534,17 +548,21 @@ namespace IQAppProvisioningBaseClasses.Provisioning
 
         public void AddWikiOrPublishingPageWebParts(ClientContext ctx, Web web, string contentFieldName)
         {
+            var rootWeb = ctx.Site.RootWeb;
+            rootWeb.EnsureProperties(w => w.Url, w => w.ServerRelativeUrl);
+
             if (WebParts == null || WebParts.Count == 0)
             {
                 var pageContent = ListItemFieldValues.Find(p => p.FieldName == contentFieldName)?.Value ?? String.Empty;
 
                 if (web.ServerRelativeUrl != "/")
                 {
-                    File.ListItemAllFields[contentFieldName] = pageContent.Replace("{@WebUrl}", web.Url).Replace("{@WebServerRelativeUrl}", web.ServerRelativeUrl);
+                    File.ListItemAllFields[contentFieldName] = pageContent.Replace("{@WebUrl}", web.Url).Replace("{@WebServerRelativeUrl}", web.ServerRelativeUrl).Replace("{@SiteUrl}", rootWeb.Url).Replace("{@SiteServerRelativeUrl}", rootWeb.ServerRelativeUrl); 
                 }
                 else
                 {
-                    File.ListItemAllFields[contentFieldName] = pageContent.Replace("{@WebUrl}", web.Url).Replace("{@WebServerRelativeUrl}", "");
+                    //In this case the web is the root web
+                    File.ListItemAllFields[contentFieldName] = pageContent.Replace("{@WebUrl}", web.Url).Replace("{@WebServerRelativeUrl}", "").Replace("{@SiteUrl}", web.Url).Replace("{@SiteServerRelativeUrl}", "");
                 }
                 File.ListItemAllFields.Update();
 
@@ -555,8 +573,8 @@ namespace IQAppProvisioningBaseClasses.Provisioning
 
             var limitedWebPartManager = File.GetLimitedWebPartManager(PersonalizationScope.Shared);
 
-            AddWikiOrPublishingContentPageWebParts(ctx, web, newIdMappings, limitedWebPartManager);
-            UpdateWikiOrPublishingContentWithStorageKeys(newIdMappings, web, contentFieldName);
+            AddWikiOrPublishingContentPageWebParts(ctx, web, rootWeb, newIdMappings, limitedWebPartManager);
+            UpdateWikiOrPublishingContentWithStorageKeys(newIdMappings, web, rootWeb, contentFieldName);
             LoadWebPartManagerFromSharePoint(ctx, limitedWebPartManager);
             MoveWebPartsToWikiOrPublishingContentEditorWebPartZone(ctx, newIdMappings, limitedWebPartManager);
             SetPageListViews(ctx, web, newIdMappings);
@@ -564,6 +582,8 @@ namespace IQAppProvisioningBaseClasses.Provisioning
 
         public void AddWebPartPageWebParts(ClientContext ctx, Web web)
         {
+            var rootWeb = ctx.Site.RootWeb;
+            rootWeb.EnsureProperties(w => w.Url, w => w.ServerRelativeUrl);
             var limitedWebPartManager = File.GetLimitedWebPartManager(PersonalizationScope.Shared);
             var newIdMappings = new Dictionary<string, string>();
 
@@ -573,8 +593,11 @@ namespace IQAppProvisioningBaseClasses.Provisioning
 
             foreach (var zoneMapping in orderedWebParts)
             {
-                var wpXml = WebParts[zoneMapping.WebPartId].Replace("{@WebUrl}", web.Url).Replace("{@WebServerRelativeUrl}",
-                    web.ServerRelativeUrl != "/" ? web.ServerRelativeUrl : "");
+                var wpXml = WebParts[zoneMapping.WebPartId]
+                    .Replace("{@WebUrl}", web.Url)
+                    .Replace("{@WebServerRelativeUrl}", web.ServerRelativeUrl != "/" ? web.ServerRelativeUrl : "")
+                    .Replace("{@SiteUrl}", rootWeb.Url)
+                    .Replace("{@SiteServerRelativeUrl}", rootWeb.ServerRelativeUrl != "/" ? rootWeb.ServerRelativeUrl : "");
 
                 //This is a crude way to go about cooercing the version numbers
                 //for files created on SPO/SP2016 for SP2013 on prem
@@ -690,25 +713,31 @@ namespace IQAppProvisioningBaseClasses.Provisioning
             ctx.ExecuteQueryRetry();
         }
 
-        private void UpdateWikiOrPublishingContentWithStorageKeys(Dictionary<string, string> newIdMappings, Web web, string contentFieldName)
+        private void UpdateWikiOrPublishingContentWithStorageKeys(Dictionary<string, string> newIdMappings, Web web, Web rootWeb, string contentFieldName)
         {
             var pageContent = ListItemFieldValues.Find(p => p.FieldName == contentFieldName)?.Value ?? String.Empty;
 
             File.ListItemAllFields[contentFieldName] =
-                WikiPageUtility.GetUpdatedWikiContentText(pageContent, WikiPageWebPartStorageKeyMappings,
-                    newIdMappings)
-                    .Replace("{@WebServerRelativeUrl}", web.ServerRelativeUrl != "/" ? web.ServerRelativeUrl : "");
+                WikiPageUtility.GetUpdatedWikiContentText(pageContent, WikiPageWebPartStorageKeyMappings, newIdMappings)
+                    .Replace("{@WebUrl}", web.Url)
+                    .Replace("{@WebServerRelativeUrl}", web.ServerRelativeUrl != "/" ? web.ServerRelativeUrl : "")
+                    .Replace("{@SiteUrl}", rootWeb.Url)
+                    .Replace("{@SiteServerRelativeUrl}", rootWeb.ServerRelativeUrl != "/" ? rootWeb.ServerRelativeUrl : "");
+
             File.ListItemAllFields.Update();
-            File.Context.ExecuteQuery();
+            File.Context.ExecuteQueryRetry();
         }
 
-        private void AddWikiOrPublishingContentPageWebParts(ClientContext ctx, Web web, Dictionary<string, string> newIdMappings,
+        private void AddWikiOrPublishingContentPageWebParts(ClientContext ctx, Web web, Web rootWeb, Dictionary<string, string> newIdMappings,
             LimitedWebPartManager limitedWebPartManager)
         {
             foreach (var key in WebParts.Keys)
             {
-                var wpXml = WebParts[key].Replace("{@WebUrl}", web.Url).Replace("{@WebServerRelativeUrl}",
-                    web.ServerRelativeUrl != "/" ? web.ServerRelativeUrl : "");
+                var wpXml = WebParts[key]
+                    .Replace("{@WebUrl}", web.Url)
+                    .Replace("{@WebServerRelativeUrl}", web.ServerRelativeUrl != "/" ? web.ServerRelativeUrl : "")
+                    .Replace("{@SiteUrl}", rootWeb.Url)
+                    .Replace("{@SiteServerRelativeUrl}", rootWeb.ServerRelativeUrl != "/" ? rootWeb.ServerRelativeUrl : "");
 
                 //This is a crude way to go about cooercing the version numbers
                 //for files created on SPO/SP2016 for SP2013 on prem

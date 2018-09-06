@@ -346,7 +346,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
 
         public virtual void UpdateDocumentTemplate(ClientContext ctx, Web web)
         {
-            if (DocumentTemplateUrl != null)
+            if (!string.IsNullOrEmpty(DocumentTemplateUrl))
             {
                 List = web.Lists.GetByTitle(Title);
                 List.ContentTypesEnabled = true;

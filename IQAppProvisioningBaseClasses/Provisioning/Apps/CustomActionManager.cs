@@ -95,6 +95,8 @@ namespace IQAppProvisioningBaseClasses.Provisioning
                             webUserCustomActionReplacementTokens);
                         newUserCustomAction.ScriptSrc = DoTokenReplacement(userCustomActionCreator.ScriptSrc,
                             webUserCustomActionReplacementTokens);
+                        newUserCustomAction.CommandUIExtension = DoTokenReplacement(userCustomActionCreator.CommandUIExtension,
+                            webUserCustomActionReplacementTokens);
                         newUserCustomAction.Sequence = userCustomActionCreator.Sequence;
                         newUserCustomAction.Url = DoTokenReplacement(userCustomActionCreator.Url,
                             webUserCustomActionReplacementTokens);
@@ -146,6 +148,8 @@ namespace IQAppProvisioningBaseClasses.Provisioning
                         newUserCustomAction.ScriptBlock = DoTokenReplacement(userCustomActionCreator.ScriptBlock,
                             listUserCustomActionReplacementTokens);
                         newUserCustomAction.ScriptSrc = DoTokenReplacement(userCustomActionCreator.ScriptSrc,
+                            listUserCustomActionReplacementTokens);
+                        newUserCustomAction.CommandUIExtension = DoTokenReplacement(userCustomActionCreator.CommandUIExtension,
                             listUserCustomActionReplacementTokens);
                         newUserCustomAction.Sequence = userCustomActionCreator.Sequence;
                         newUserCustomAction.Url = DoTokenReplacement(userCustomActionCreator.Url,
@@ -229,6 +233,8 @@ namespace IQAppProvisioningBaseClasses.Provisioning
                         newUserCustomAction.ScriptBlock = DoTokenReplacement(customActionCreator.ScriptBlock,
                             webUserCustomActionReplacementTokens);
                         newUserCustomAction.ScriptSrc = DoTokenReplacement(customActionCreator.ScriptSrc,
+                            webUserCustomActionReplacementTokens);
+                        newUserCustomAction.CommandUIExtension = DoTokenReplacement(customActionCreator.CommandUIExtension,
                             webUserCustomActionReplacementTokens);
                         newUserCustomAction.Sequence = customActionCreator.Sequence;
                         newUserCustomAction.Url = DoTokenReplacement(customActionCreator.Url,

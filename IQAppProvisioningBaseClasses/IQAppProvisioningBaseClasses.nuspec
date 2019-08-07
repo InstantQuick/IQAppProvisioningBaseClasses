@@ -11,8 +11,8 @@
     <iconUrl>https://avatars2.githubusercontent.com/u/20448352</iconUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>CSOM based provisioning library for SharePoint 2013, 2016, and SharePoint Online</description>
-    <releaseNotes>Support for replacement tokens referring to the root web for files and subsite templates. Many new properties in list templates.</releaseNotes>
-    <copyright>Copyright 2018</copyright>
+    <releaseNotes>Support for replacement tokens referring to the root web for files and subsite templates. Many new properties in list templates. Updated to use 4.6.2 for TLS 1.2</releaseNotes>
+    <copyright>Copyright 2019</copyright>
     <tags>SharePoint Provisioning sharepoint provision CSOM</tags>
   </metadata>
 </package>

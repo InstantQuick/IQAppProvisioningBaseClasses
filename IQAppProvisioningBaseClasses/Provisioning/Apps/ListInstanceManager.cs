@@ -7,6 +7,7 @@ using IQAppProvisioningBaseClasses.Events;
 using Microsoft.SharePoint.Client;
 using Microsoft.SharePoint.Client.Taxonomy;
 using SharePointUtility;
+using IQAppProvisioningBaseClasses.Utility;
 
 namespace IQAppProvisioningBaseClasses.Provisioning
 {
@@ -50,8 +51,8 @@ namespace IQAppProvisioningBaseClasses.Provisioning
                 BindContentTypes();
                 ConfigureFieldsAndViews();
                 ApplySecurity();
-                FinalizeConfigurations();
                 AddAndDeleteListItems();
+                FinalizeConfigurations();
             }
             catch (Exception ex)
             {
@@ -148,7 +149,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
             if (sortedCreators.FirstOrDefault(c => c.ListItems.FirstOrDefault(li => li.FieldValues.FirstOrDefault(fv => fv.FieldType != null && fv.FieldType.StartsWith("TaxonomyField")) != null) != null) != null)
             {
                 taxonomySession = TaxonomySession.GetTaxonomySession(tempCtx);
-                termStore = taxonomySession.GetDefaultSiteCollectionTermStore();
+                termStore = TermStoreUtility.GetTermStore(tempCtx, taxonomySession);
             }
 
             foreach (var creator in sortedCreators)
@@ -546,7 +547,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
         {
             foreach (var creator in Creators.Values)
             {
-                creator.ConfigureBeforeContentTypeBinding(_ctx);
+                creator.ConfigureBeforeContentTypeBinding(_ctx, _web);
             }
             _ctx.ExecuteQueryRetry();
         }
@@ -568,6 +569,8 @@ namespace IQAppProvisioningBaseClasses.Provisioning
                 _ctx.Load(creator.List.Views,
                     v => v.Include
                         (view => view.Id, view => view.ViewFields, view => view.Title));
+
+                _ctx.ExecuteQueryRetry();
 
                 if (creator.ReplaceDefaultType)
                 {
@@ -644,7 +647,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
             foreach (var creator in Creators.Values)
             {
                 OnNotify(ProvisioningNotificationLevels.Verbose, "Configuring fields and views for " + creator.Title);
-                creator.ConfigureFieldsAndViews(_ctx);
+                creator.ConfigureFieldsAndViews(_ctx, _web);
             }
         }
 
@@ -654,7 +657,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
             {
                 if (creator.List != null)
                 {
-                    creator.FinalizeConfiguration(_ctx);
+                    creator.FinalizeConfiguration(_ctx, _web);
                 }
             }
             _ctx.ExecuteQueryRetry();
@@ -666,7 +669,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
                 {
                     if (creator.List != null)
                     {
-                        creator.FinalizeConfiguration(_ctx);
+                        creator.FinalizeConfiguration(_ctx, _web);
                         if (creator.ListInfo != null)
                         {
                             listHelper.Add(creator.ListInfo);

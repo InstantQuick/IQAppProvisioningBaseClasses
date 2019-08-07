@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using Microsoft.SharePoint.Client;
 using SharePointUtility;
 
@@ -17,6 +18,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
         public virtual string Id { get; set; }
         public virtual string TitleFieldDisplayName { get; set; }
         public virtual List<string> RequiredFields { get; set; }
+        public virtual List<string> RemoveFields { get; set; }
         public virtual List<string> IndexFields { get; set; }
         public virtual List<string> HiddenFormFields { get; set; }
         public virtual List<string> DisplayFormOnlyFields { get; set; }
@@ -28,6 +30,14 @@ namespace IQAppProvisioningBaseClasses.Provisioning
         public virtual Dictionary<string, string> AdditionalFields { get; set; }
         public virtual bool NoCrawl { get; set; }
         public virtual bool Hidden { get; set; }
+        public virtual bool EnableAttachments { get; set; }
+        public virtual bool EnableFolderCreation { get; set; }
+        public virtual bool EnableMinorVersions { get; set; }
+        public virtual bool EnableModeration { get; set; }
+        public virtual bool EnableVersioning { get; set; }
+        public virtual string ValidationFormula { get; set; } = string.Empty;
+        public virtual string ValidationMessage { get; set; } = string.Empty;
+        public virtual ListExperience ListExperienceOptions { get; set; }
         public virtual QuickLaunchOptions QuickLaunchOption { get; set; }
         public virtual Guid TemplateFeatureId { get; set; }
         public virtual int TemplateType { get; set; }
@@ -53,28 +63,36 @@ namespace IQAppProvisioningBaseClasses.Provisioning
 
         public virtual List<RemoteEventRegistrationCreator> RemoteEventRegistrationCreators { get; set; }
 
-        public virtual void ConfigureBeforeContentTypeBinding(ClientContext ctx)
+        public virtual void ConfigureBeforeContentTypeBinding(ClientContext ctx, Web web)
         {
             if (CorrespondingLookupFieldName != null)
             {
-                CorrespondingLookupField = ctx.Web.Fields.GetByInternalNameOrTitle(CorrespondingLookupFieldName);
+                CorrespondingLookupField = web.Fields.GetByInternalNameOrTitle(CorrespondingLookupFieldName);
                 Utility.AttachListToLookup(ctx, CorrespondingLookupField, List);
             }
             if (CorrespondingLookupFieldNames != null && CorrespondingLookupFieldNames.Count > 0)
             {
                 foreach (var fieldName in CorrespondingLookupFieldNames)
                 {
-                    var fieldToAttach = ctx.Web.Fields.GetByInternalNameOrTitle(fieldName);
+                    var fieldToAttach = web.Fields.GetByInternalNameOrTitle(fieldName);
                     Utility.AttachListToLookup(ctx, fieldToAttach, List);
                 }
+            }
+            if (RemoveFields != null && RemoveFields.Count > 0)
+            {
+                RefreshList(ctx, web);
+                foreach (var removeField in RemoveFields)
+                {
+                    var deleteField = List.Fields.FirstOrDefault(f => f.InternalName == removeField);
+                    deleteField?.DeleteObject();
+                }
+                ctx.ExecuteQueryRetry();
             }
             if (AdditionalFields != null)
             {
                 var excludeFields = new List<string>();
 
-                ctx.Load(List.Fields, f => f.Include
-                    (field => field.InternalName, field => field.Id));
-                ctx.ExecuteQueryRetry();
+                RefreshList(ctx, web);
                 foreach (var existingField in List.Fields)
                 {
                     //TODO: Change completely to ID from builder down
@@ -93,7 +111,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
                 {
                     if (!excludeFields.Contains(field))
                     {
-                        CleanupTaxonomyHiddenField(ctx, AdditionalFields[field], excludeFields);
+                        CleanupTaxonomyHiddenField(ctx, web, AdditionalFields[field], excludeFields);
                         AddFieldAsXml(field, FieldTokenizer.DoTokenReplacement(ctx, AdditionalFields[field]));
                     }
                 }
@@ -101,7 +119,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
             }
         }
 
-        private void CleanupTaxonomyHiddenField(ClientContext ctx, string field, List<string> excludeFields)
+        private void CleanupTaxonomyHiddenField(ClientContext ctx, Web web, string field, List<string> excludeFields)
         {
             var fieldType = field.GetXmlAttribute("Type");
             if (fieldType.StartsWith("TaxonomyField"))
@@ -115,56 +133,53 @@ namespace IQAppProvisioningBaseClasses.Provisioning
                     {
                         deleteNoteField = List.Fields.GetByInternalNameOrTitle(fieldId);
                         deleteNoteField.DeleteObject();
-                        ctx.ExecuteQuery();
+                        ctx.ExecuteQueryRetry();
                     }
                     else
                     {
                         var noteDisplayName = $"{field.GetXmlAttribute("Name")}_0";
                         deleteNoteField = List.Fields.GetByTitle(noteDisplayName);
                         deleteNoteField.DeleteObject();
-                        ctx.ExecuteQuery();
+                        ctx.ExecuteQueryRetry();
                     }
                 }
                 catch
                 {
-                   //Ignore
+                    //Ignore
                 }
             }
         }
 
-        public virtual void ConfigureFieldsAndViews(ClientContext ctx)
+        public virtual void ConfigureFieldsAndViews(ClientContext ctx, Web web)
         {
-            RefreshList(ctx);
-
-            if ((IndexFields != null && IndexFields.Count > 0) || (RequiredFields != null && RequiredFields.Count > 0) ||
-                EnforceUniqueFields != null && EnforceUniqueFields.Count > 0)
+            RefreshList(ctx, web);
+            
+            if (RequiredFields != null && RequiredFields.Count > 0)
             {
-                if (RequiredFields != null && RequiredFields.Count > 0)
+                foreach (var field in RequiredFields)
                 {
-                    foreach (var field in RequiredFields)
-                    {
-                        Utility.RequireField(List, field);
-                    }
+                    Utility.RequireField(List, field);
                 }
-
-                if (IndexFields != null && IndexFields.Count > 0)
-                {
-                    foreach (var field in IndexFields)
-                    {
-                        Utility.IndexField(List, field);
-                    }
-                }
-
-                if (EnforceUniqueFields != null && EnforceUniqueFields.Count > 0)
-                {
-                    foreach (var field in EnforceUniqueFields)
-                    {
-                        Utility.EnforceUniqueField(List, field);
-                    }
-                }
-                ctx.ExecuteQueryRetry();
-                RefreshList(ctx);
             }
+
+            if (IndexFields != null && IndexFields.Count > 0)
+            {
+                foreach (var field in IndexFields)
+                {
+                    Utility.IndexField(List, field);
+                }
+            }
+
+            if (EnforceUniqueFields != null && EnforceUniqueFields.Count > 0)
+            {
+                foreach (var field in EnforceUniqueFields)
+                {
+                    Utility.EnforceUniqueField(List, field);
+                }
+            }
+            ctx.ExecuteQueryRetry();
+            RefreshList(ctx, web);
+
             if (HiddenFormFields != null && HiddenFormFields.Count > 0)
             {
                 foreach (var fieldName in HiddenFormFields)
@@ -172,7 +187,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
                     Utility.HideFieldOnAllForms(List, fieldName);
                 }
                 ctx.ExecuteQueryRetry();
-                RefreshList(ctx);
+                RefreshList(ctx, web);
             }
             if (DisplayFormOnlyFields != null && DisplayFormOnlyFields.Count > 0)
             {
@@ -181,13 +196,13 @@ namespace IQAppProvisioningBaseClasses.Provisioning
                     Utility.ShowOnDisplayFormOnly(List, field);
                 }
                 ctx.ExecuteQueryRetry();
-                RefreshList(ctx);
+                RefreshList(ctx, web);
             }
             if (!string.IsNullOrEmpty(TitleFieldDisplayName))
             {
                 Utility.SetTitleFieldDisplayName(List, TitleFieldDisplayName);
                 ctx.ExecuteQueryRetry();
-                RefreshList(ctx);
+                RefreshList(ctx, web);
             }
             if (FieldDisplayNameOverrides != null && FieldDisplayNameOverrides.Count > 0)
             {
@@ -196,7 +211,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
                     Utility.SetFieldDisplayName(List, field, FieldDisplayNameOverrides[field]);
                 }
                 ctx.ExecuteQueryRetry();
-                RefreshList(ctx);
+                RefreshList(ctx, web);
             }
 
             if (!string.IsNullOrEmpty(DefaultViewSchemaXml) || !string.IsNullOrEmpty(DefaultViewTitle))
@@ -220,7 +235,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
                 {
                     if (!ViewExists(key))
                     {
-                        var vcInfo = new ViewCreationInformation {Title = key};
+                        var vcInfo = new ViewCreationInformation { Title = key };
                         var view = List.Views.Add(vcInfo);
                         view.ListViewXml = ListViewSchemas[key];
                         view.Update();
@@ -258,19 +273,19 @@ namespace IQAppProvisioningBaseClasses.Provisioning
             }
         }
 
-        private void RefreshList(ClientContext ctx)
+        private void RefreshList(ClientContext ctx, Web web)
         {
             //Reload fields
             //TODO: This is a hack to fix a bug in server version 16.0.3417.1200
             //Dump the List object and reload it
-            var refreshedList = ctx.Web.Lists.GetByTitle(List.Title);
+            var refreshedList = web.Lists.GetByTitle(List.Title);
             var hackWorked = false;
             var retryCounter = 0;
             do
             {
                 ctx.Load(refreshedList, l => l.Id, l => l.Title);
                 ctx.Load(refreshedList.Fields, f => f.Include
-                    (field => field.InternalName, field => field.SchemaXml));
+                    (field => field.InternalName, field => field.SchemaXml, field => field.Id));
                 ctx.Load(refreshedList.Views,
                     v => v.Include
                         (view => view.Id, view => view.ViewFields, view => view.Title));
@@ -291,33 +306,55 @@ namespace IQAppProvisioningBaseClasses.Provisioning
             List = refreshedList;
         }
 
-        public virtual void FinalizeConfiguration(ClientContext ctx)
+        public virtual void FinalizeConfiguration(ClientContext ctx, Web web)
         {
             if (!string.IsNullOrEmpty(ContentType)) ListInfo = new ListInfo(List, ContentType);
-            if (NoCrawl || Hidden)
+            List.EnableModeration = EnableModeration;
+            List.EnableAttachments = EnableAttachments;
+            List.EnableFolderCreation = EnableFolderCreation;
+            List.EnableMinorVersions = EnableMinorVersions;
+            List.EnableVersioning = EnableVersioning;
+            List.ValidationMessage = ValidationMessage;
+            List.ValidationFormula = ValidationFormula;
+            List.NoCrawl = NoCrawl;
+            List.Hidden = Hidden;
+            List.Update();
+            ctx.ExecuteQuery();
+
+            try
             {
-                List.NoCrawl = NoCrawl;
-                List.Hidden = Hidden;
+                List.ListExperienceOptions = ListExperienceOptions;
                 List.Update();
+                ctx.ExecuteQuery();
             }
+            catch
+            {
+                //ignored
+            }
+
             if (CustomActionCreators != null && CustomActionCreators.Count > 0)
             {
-                var customActionManager = new CustomActionManager {CustomActions = CustomActionCreators};
+                var customActionManager = new CustomActionManager(ctx) { CustomActions = CustomActionCreators };
                 customActionManager.CreateAll(ctx, List);
             }
         }
 
         public virtual void UpdateDocumentTemplate(ClientContext ctx)
         {
-            if (DocumentTemplateUrl != null)
+            UpdateDocumentTemplate(ctx, ctx.Web);
+        }
+
+        public virtual void UpdateDocumentTemplate(ClientContext ctx, Web web)
+        {
+            if (!string.IsNullOrEmpty(DocumentTemplateUrl))
             {
-                List = ctx.Web.Lists.GetByTitle(Title);
+                List = web.Lists.GetByTitle(Title);
                 List.ContentTypesEnabled = true;
                 List.Update();
                 ctx.Load(List.ContentTypes);
                 ctx.ExecuteQueryRetry();
                 List.ContentTypes[0].DocumentTemplate = DocumentTemplateUrl.Replace("{@WebServerRelativeUrl}",
-                    ctx.Web.ServerRelativeUrl);
+                    web.ServerRelativeUrl);
                 List.ContentTypes[0].Update(false);
                 ctx.ExecuteQueryRetry();
             }

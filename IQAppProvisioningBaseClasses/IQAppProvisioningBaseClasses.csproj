@@ -225,6 +225,7 @@
     <Compile Include="Utility\PnPClientContext.cs" />
     <Compile Include="Utility\StringExtensions.cs" />
     <Compile Include="Utility\ProvisioningUtility.cs" />
+    <Compile Include="Utility\TermStoreUtility.cs" />
     <Compile Include="Utility\Tokenizer.cs" />
     <Compile Include="Web References\WebPartPagesWebService\Reference.cs">
       <AutoGen>True</AutoGen>

@@ -149,29 +149,31 @@ namespace IQAppProvisioningBaseClasses.Provisioning
             return appManifest;
         }
 
-        public static void SaveManifestToAzureStorage(AppManifestBase appManifest)
+        public static void SaveManifestToAzureStorage(AppManifestBase appManifest, string fileName = "manifest.json")
         {
             var azureStorageInfo = appManifest.GetAzureStorageInfo();
             if (azureStorageInfo == null) return;
+            if (string.IsNullOrEmpty(fileName)) fileName = "manifest.json";
 
             var blobStorage = new BlobStorage(azureStorageInfo.Account, azureStorageInfo.AccountKey,
                 azureStorageInfo.Container);
             var js = new JavaScriptSerializer();
 
             var json = js.Serialize(appManifest);
-            blobStorage.UploadText(json, "manifest.json");
+            blobStorage.UploadText(json, fileName);
         }
 
-        public static void SaveManifestToFileSystem(AppManifestBase appManifest)
+        public static void SaveManifestToFileSystem(AppManifestBase appManifest, string fileName = "manifest.json")
         {
             if (string.IsNullOrEmpty(appManifest.BaseFilePath)) return;
+            if (string.IsNullOrEmpty(fileName)) fileName = "manifest.json";
 
             if (!appManifest.BaseFilePath.EndsWith(@"\")) appManifest.BaseFilePath += @"\";
 
             var js = new JavaScriptSerializer();
 
             var json = js.Serialize(appManifest);
-            File.WriteAllText(appManifest.BaseFilePath + "manifest.json", json, new System.Text.UTF8Encoding());
+            File.WriteAllText(appManifest.BaseFilePath + fileName, json, new System.Text.UTF8Encoding());
         }
     }
 }

@@ -3,29 +3,42 @@ using System.Linq;
 using Microsoft.SharePoint.Client;
 using Microsoft.SharePoint.Client.Taxonomy;
 using System.Collections.Generic;
+using IQAppProvisioningBaseClasses.Utility;
 
 namespace IQAppProvisioningBaseClasses.Provisioning
 {
     public class FieldTokenizer
     {
-        public static string DoTokenSubstitutions(ClientContext ctx, Field field)
+        public static string DoTokenSubstitutionsAndCleanSchema(ClientContext ctx, Field field)
+        {
+            return DoTokenSubstitutionsAndCleanSchema(ctx, ctx.Web, field);
+        }
+        public static string DoTokenSubstitutionsAndCleanSchema(ClientContext ctx, Web web, Field field)
         {
             var schemaXml = field.SchemaXml;
-            var newXml = SubstituteGroupTokens(ctx, schemaXml);
-            newXml = TokenizeLookupField(ctx, newXml);
+            var newXml = SubstituteGroupTokens(ctx, web, schemaXml);
+            newXml = TokenizeLookupField(ctx, web, newXml);
             newXml = TokenizeTaxonomyField(ctx, field, newXml);
+            newXml = newXml.RemoveXmlAttribute("Version");
+            newXml = newXml.RemoveXmlAttribute("Sealed");
+            newXml = newXml.RemoveXmlAttribute("SourceId");
             return newXml;
         }
 
         public static string DoTokenReplacement(ClientContext ctx, string schemaXml)
         {
-            var newXml = ReplaceGroupTokens(ctx, schemaXml);
-            newXml = ReplaceListTokens(ctx, newXml);
-            newXml = ReplaceTaxonomyTokens(ctx, newXml);
-            return newXml;
+            return DoTokenReplacement(ctx, ctx.Web, schemaXml);
         }
 
-        private static string SubstituteGroupTokens(ClientContext ctx, string schemaXml)
+        public static string DoTokenReplacement(ClientContext ctx, Web web, string schemaXml)
+        {
+            var newXml = ReplaceGroupTokens(ctx, web, schemaXml);
+            newXml = ReplaceListTokens(ctx, web, newXml);
+            newXml = ReplaceTaxonomyTokens(ctx, web, newXml);
+            return newXml;
+        }
+        
+        private static string SubstituteGroupTokens(ClientContext ctx, Web web, string schemaXml)
         {
             if (!schemaXml.Contains("UserSelectionScope"))
             {
@@ -40,24 +53,24 @@ namespace IQAppProvisioningBaseClasses.Provisioning
             int id;
             if (int.TryParse(groupId, out id) && id != 0)
             {
-                var group = ctx.Web.SiteGroups.GetById(id);
+                var group = web.SiteGroups.GetById(id);
                 ctx.Load(group, g => g.Title);
-                ctx.Load(ctx.Web.AssociatedMemberGroup, g => g.Id);
-                ctx.Load(ctx.Web.AssociatedOwnerGroup, g => g.Id);
-                ctx.Load(ctx.Web.AssociatedVisitorGroup, g => g.Id);
+                ctx.Load(web.AssociatedMemberGroup, g => g.Id);
+                ctx.Load(web.AssociatedOwnerGroup, g => g.Id);
+                ctx.Load(web.AssociatedVisitorGroup, g => g.Id);
                 ctx.ExecuteQueryRetry();
 
                 var tokenTitle = group.Title;
 
-                if (id == ctx.Web.AssociatedMemberGroup.Id)
+                if (id == web.AssociatedMemberGroup.Id)
                 {
                     tokenTitle = "AssociatedMemberGroup";
                 }
-                if (id == ctx.Web.AssociatedOwnerGroup.Id)
+                if (id == web.AssociatedOwnerGroup.Id)
                 {
                     tokenTitle = "AssociatedOwnerGroup";
                 }
-                if (id == ctx.Web.AssociatedVisitorGroup.Id)
+                if (id == web.AssociatedVisitorGroup.Id)
                 {
                     tokenTitle = "AssociatedVisitorGroup";
                 }
@@ -67,7 +80,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
             return schemaXml;
         }
 
-        private static string TokenizeLookupField(ClientContext ctx, string schemaXml)
+        private static string TokenizeLookupField(ClientContext ctx, Web web, string schemaXml)
         {
             var retval = schemaXml;
 
@@ -81,7 +94,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
                     Guid listGuid;
                     if (Guid.TryParse(listIdOrUrl, out listGuid))
                     {
-                        lookupTarget = ctx.Web.Lists.GetById(listGuid);
+                        lookupTarget = web.Lists.GetById(listGuid);
                         ctx.Load(lookupTarget, l => l.Title);
                         ctx.ExecuteQueryRetry();
                     }
@@ -91,18 +104,18 @@ namespace IQAppProvisioningBaseClasses.Provisioning
                         {
                             listIdOrUrl = "/" + listIdOrUrl;
                         }
-                        var baseUrl = ctx.Web.ServerRelativeUrl == "/" ? "" : ctx.Web.ServerRelativeUrl;
+                        var baseUrl = web.ServerRelativeUrl == "/" ? "" : web.ServerRelativeUrl;
 
                         //Get list is new since CSOM v15.0.4701.1001
                         if (ctx.ServerVersion >= Version.Parse("15.0.4701.1001"))
                         {
-                            lookupTarget = ctx.Web.GetList(baseUrl + listIdOrUrl);
+                            lookupTarget = web.GetList(baseUrl + listIdOrUrl);
                             ctx.Load(lookupTarget, l => l.Title);
                             ctx.ExecuteQueryRetry();
                         }
                         else
                         {
-                            var lists = ctx.Web.Lists;
+                            var lists = web.Lists;
                             ctx.Load(lists, ls => ls.Include(l => l.DefaultViewUrl, l => l.Title));
                             ctx.ExecuteQueryRetry();
                             foreach (var l in lists)
@@ -141,16 +154,8 @@ namespace IQAppProvisioningBaseClasses.Provisioning
             ctx.ExecuteQueryRetry();
 
             var defaultValue = taxonomyField.DefaultValue;
-            if (defaultValue != null)
+            if (!string.IsNullOrEmpty(defaultValue))
             {
-                var defaultValueToken = $"{{@DefaultValue:{defaultValue.GetInnerText(";#", "|")}}}";
-                //schemaXml = schemaXml.Replace(defaultValue, defaultValueToken);
-
-                //There is no good way to set the default value in CSOM for field when you are creating it
-                //because it requires the WssId of the term, which in most cases will not exist in the site's HiddenTaxonomyList
-                //If you need to do this, add a dummy item to a list that contains this field with the value set
-                //get the WssId, update the property, and delete the dummy record as a post deployment step
-                //or do it manually in the UI
                 schemaXml = schemaXml.Replace(defaultValue, "");
             }
 
@@ -161,14 +166,14 @@ namespace IQAppProvisioningBaseClasses.Provisioning
                 taxonomyField.AnchorId != default(Guid))
             {
                 var taxonomySession = TaxonomySession.GetTaxonomySession(ctx);
-                var termStore = taxonomySession.GetDefaultSiteCollectionTermStore();
+                var termStore = TermStoreUtility.GetTermStore(ctx, taxonomySession);
                 TermSet termSet = null;
                 Term anchorTerm = null;
 
                 if (taxonomyField.TermSetId != default(Guid))
                 {
-                    termSet = termStore.GetTermSet(taxonomyField.TermSetId); 
-                    ctx.Load(termSet, ts => ts.Name);    
+                    termSet = termStore.GetTermSet(taxonomyField.TermSetId);
+                    ctx.Load(termSet, ts => ts.Name);
                 }
                 if (taxonomyField.AnchorId != default(Guid))
                 {
@@ -184,26 +189,33 @@ namespace IQAppProvisioningBaseClasses.Provisioning
                     //ignore
                 }
 
-                if (termSet != null)
+                if (termSet != null && termSet.IsPropertyAvailable("Name"))
                 {
                     schemaXml = schemaXml.Replace(taxonomyField.TermSetId.ToString(), $"{{@TermSet:{termSet.Name}}}");
                 }
-                if (anchorTerm != null)
+                else
+                {
+                    schemaXml = schemaXml.Replace(taxonomyField.TermSetId.ToString(), $"00000000-0000-0000-0000-000000000000");
+                }
+                if (anchorTerm != null && anchorTerm.IsPropertyAvailable("Name"))
                 {
                     schemaXml = schemaXml.Replace(taxonomyField.AnchorId.ToString(), $"{{@AnchorTermId:{anchorTerm.Name}}}");
+                }
+                else
+                {
+                    schemaXml = schemaXml.Replace(taxonomyField.AnchorId.ToString(), $"00000000-0000-0000-0000-000000000000");
                 }
             }
 
             return schemaXml;
         }
-
-        private static string ReplaceGroupTokens(ClientContext ctx, string schemaXml)
+        private static string ReplaceGroupTokens(ClientContext ctx, Web web, string schemaXml)
         {
             if (!schemaXml.Contains("UserSelectionScope"))
             {
                 return schemaXml;
             }
-            if (ctx.Web.AppInstanceId != default(Guid))
+            if (web.AppInstanceId != default(Guid))
             {
                 return schemaXml.RemoveXmlAttribute("UserSelectionScope");
             }
@@ -216,19 +228,19 @@ namespace IQAppProvisioningBaseClasses.Provisioning
             Group group;
             if (groupName == "AssociatedMemberGroup")
             {
-                group = ctx.Web.AssociatedMemberGroup;
+                group = web.AssociatedMemberGroup;
             }
             else if (groupName == "AssociatedOwnerGroup")
             {
-                group = ctx.Web.AssociatedOwnerGroup;
+                group = web.AssociatedOwnerGroup;
             }
             else if (groupName == "AssociatedVisitorGroup")
             {
-                group = ctx.Web.AssociatedVisitorGroup;
+                group = web.AssociatedVisitorGroup;
             }
             else
             {
-                group = ctx.Web.SiteGroups.GetByName(groupName);
+                group = web.SiteGroups.GetByName(groupName);
             }
             ctx.Load(group, g => g.Id);
             ctx.ExecuteQueryRetry();
@@ -238,14 +250,14 @@ namespace IQAppProvisioningBaseClasses.Provisioning
             return schemaXml;
         }
 
-        private static string ReplaceListTokens(ClientContext ctx, string schemaXml)
+        private static string ReplaceListTokens(ClientContext ctx, Web web, string schemaXml)
         {
             var retval = schemaXml;
 
             var listTitle = retval.GetInnerText("{@ListId:", "}", true);
             if (!string.IsNullOrEmpty(listTitle))
             {
-                var list = ctx.Web.Lists.GetByTitle(listTitle);
+                var list = web.Lists.GetByTitle(listTitle);
                 ctx.Load(list, l => l.Id);
 
                 try
@@ -266,7 +278,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
             return retval;
         }
 
-        private static string ReplaceTaxonomyTokens(ClientContext ctx, string schemaXml)
+        private static string ReplaceTaxonomyTokens(ClientContext ctx, Web web, string schemaXml)
         {
             var tokens = new List<string>()
             {
@@ -280,51 +292,106 @@ namespace IQAppProvisioningBaseClasses.Provisioning
             if (foundTokens.Count == 0) return schemaXml;
 
             var taxonomySession = TaxonomySession.GetTaxonomySession(ctx);
-            var termStore = taxonomySession.GetDefaultSiteCollectionTermStore();
+            var termStore = TermStoreUtility.GetTermStore(ctx, taxonomySession);
             ctx.Load(termStore, ts => ts.Id);
-            ctx.ExecuteQuery();
-
-            TermCollection terms = null;
+            ctx.ExecuteQueryRetry();
 
             schemaXml = schemaXml.Replace("{@SspId}", termStore.Id.ToString());
             var termSetName = schemaXml.GetInnerText("{@TermSet:", "}");
-            var termSets = termStore.GetTermSetsByName(termSetName, (int) ctx.Web.Language);
-            ctx.Load(termSets, ts => ts.Include(t => t.Id));
-            ctx.ExecuteQueryRetry();
-
-            if (termSets.Count == 0)
+            if (!string.IsNullOrEmpty(termSetName))
             {
-                throw new InvalidOperationException($"Unable to find term set {termSetName}.");
-            }
-
-            schemaXml = schemaXml.Replace($"{{@TermSet:{termSetName}}}", termSets[0].Id.ToString());
-            terms = termSets[0].GetAllTerms();
-            ctx.Load(terms);
-            ctx.ExecuteQueryRetry();
-            if (foundTokens.Contains("{@AnchorTermId:"))
-            {
-                var anchorTermName = schemaXml.GetInnerText("{@AnchorTermId:", "}");
-                var foundAnchorTerm = terms.FirstOrDefault(t => t.Name == anchorTermName);
-                ctx.ExecuteQuery();
-                if (foundAnchorTerm != null)
-                {
-                    schemaXml = schemaXml.Replace($"{{@AnchorTermId:{anchorTermName}}}", foundAnchorTerm.Id.ToString());
-                }
-            }
-
-            if (foundTokens.Contains("{@DefaultValue:"))
-            {
-                var defaultValueTermName = schemaXml.GetInnerText("{@DefaultValue:", "}");
-                var foundDefaultTerm = terms.FirstOrDefault(t => t.Name == defaultValueTermName);
+                var termSets = termStore.GetTermSetsByName(termSetName, (int)web.Language);
+                ctx.Load(termSets, ts => ts.Include(t => t.Id, t => t.Name));
                 ctx.ExecuteQueryRetry();
-                if (foundDefaultTerm != null)
+
+                if (termSets.Count == 0)
                 {
-                    schemaXml = schemaXml.Replace($"{{@DefaultValue:{defaultValueTermName}}}",
-                        $"-1;#{defaultValueTermName}|{foundDefaultTerm.Id.ToString()}");
+                    throw new InvalidOperationException($"Unable to find term set {termSetName}.");
+                }
+
+                var termSet = GetCorrectTermSet(ctx, schemaXml, termSets);
+
+                System.Diagnostics.Debug.WriteLine($"{schemaXml.GetXmlAttribute("DisplayName")} | {termSet.Id} | {termSet.Name}");
+
+                schemaXml = schemaXml.Replace($"{{@TermSet:{termSetName}}}", termSet.Id.ToString());
+                var terms = termSet.GetAllTerms();
+                ctx.Load(terms);
+                ctx.ExecuteQueryRetry();
+                if (foundTokens.Contains("{@AnchorTermId:"))
+                {
+                    var anchorTermName = schemaXml.GetInnerText("{@AnchorTermId:", "}");
+                    var foundAnchorTerm = terms.FirstOrDefault(t => t.Name == anchorTermName);
+                    schemaXml = schemaXml.Replace($"{{@AnchorTermId:{anchorTermName}}}", foundAnchorTerm?.Id.ToString() ?? "");
+                }
+
+                if (foundTokens.Contains("{@DefaultValue:"))
+                {
+                    var defaultValueTermName = schemaXml.GetInnerText("{@DefaultValue:", "}");
+                    var foundDefaultTerm = terms.FirstOrDefault(t => t.Name == defaultValueTermName);
+                    schemaXml = schemaXml.Replace($"{{@DefaultValue:{defaultValueTermName}}}", foundDefaultTerm != null ? $"-1;#{defaultValueTermName}|{foundDefaultTerm.Id.ToString()}" : "");
                 }
             }
 
             return schemaXml;
+        }
+
+        private static TermSet GetCorrectTermSet(ClientContext ctx, string schemaXml, TermSetCollection termSets)
+        {
+            //This is a challenge when there is more than one 
+            if (termSets.Count == 1) return termSets[0];
+            if (termSets.Count == 0) return null;
+
+            var anchorTermName = schemaXml.GetInnerText("{@AnchorTermId:", "}");
+            var defaultValueTermName = schemaXml.GetInnerText("{@DefaultValue:", "}");
+            TermSet bestMatch = null;
+            var maxTermCount = 0;
+
+            foreach (var termSet in termSets)
+            {
+                var terms = termSet.GetAllTerms();
+                ctx.Load(terms);
+                ctx.Load(termSet.Group, g => g.Name);
+                try
+                {
+                    ctx.ExecuteQueryRetry();
+
+                    if (!termSet.Group.Name.StartsWith("Site Collection"))
+                    {
+
+                        if (!string.IsNullOrEmpty(anchorTermName) && !string.IsNullOrEmpty(defaultValueTermName))
+                        {
+                            if (terms.FirstOrDefault(t => t.Name == anchorTermName) != null && terms.FirstOrDefault(t => t.Name == defaultValueTermName) != null)
+                            {
+                                return termSet;
+                            }
+                        }
+                        else if (!string.IsNullOrEmpty(anchorTermName))
+                        {
+                            if (terms.FirstOrDefault(t => t.Name == anchorTermName) != null)
+                            {
+                                return termSet;
+                            }
+                        }
+                        else if (terms.FirstOrDefault(t => t.Name == defaultValueTermName) != null)
+                        {
+                            return termSet;
+                        }
+                        else
+                        {
+                            if (terms.Count > maxTermCount || bestMatch == null)
+                            {
+                                maxTermCount = terms.Count;
+                                bestMatch = termSet;
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+                    //ignored
+                }
+            }
+            return bestMatch;
         }
     }
 }

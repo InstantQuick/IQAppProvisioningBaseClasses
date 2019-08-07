@@ -63,7 +63,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
                 {
                     eventReceiverDefinition.DeleteObject();
                 }
-                clientContext.ExecuteQuery();
+                clientContext.ExecuteQueryRetry();
             }
 
             var eventReceiver = new EventReceiverDefinitionCreationInformation
@@ -100,7 +100,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
                 {
                     eventReceiverDefinition.DeleteObject();
                 }
-                clientContext.ExecuteQuery();
+                clientContext.ExecuteQueryRetry();
             }
 
             var eventReceiver = new EventReceiverDefinitionCreationInformation
@@ -136,7 +136,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
                 {
                     eventReceiverDefinition.DeleteObject();
                 }
-                clientContext.ExecuteQuery();
+                clientContext.ExecuteQueryRetry();
             }
 
             var eventReceiver = new EventReceiverDefinitionCreationInformation
@@ -203,7 +203,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
             if (remoteEvent != null)
             {
                 remoteEvent.DeleteObject();
-                ctx.ExecuteQuery();
+                ctx.ExecuteQueryRetry();
             }
         }
     }

@@ -15,10 +15,10 @@ namespace IQAppProvisioningBaseClasses.Provisioning
         private Web _targetWeb;
         public virtual Dictionary<string, string> FieldDefinitions { get; set; } = null;
 
-        public void CreateAll(ClientContext ctx)
+        public void CreateAll(ClientContext ctx, Web web)
         {
             _ctx = ctx;
-            _targetWeb = _ctx.Web;
+            _targetWeb = web;
 
             if (FieldDefinitions != null && FieldDefinitions.Count > 0)
             {
@@ -54,6 +54,11 @@ namespace IQAppProvisioningBaseClasses.Provisioning
             }
         }
 
+        public void CreateAll(ClientContext ctx)
+        {
+            CreateAll(ctx, ctx.Web);
+        }
+
         private void CleanupTaxonomyHiddenField(string schemaXml)
         {
             try
@@ -83,10 +88,10 @@ namespace IQAppProvisioningBaseClasses.Provisioning
             }
         }
 
-        public void DeleteAll(ClientContext ctx)
+        public void DeleteAll(ClientContext ctx, Web web)
         {
             _ctx = ctx;
-            _targetWeb = _ctx.Web;
+            _targetWeb = web;
             if (FieldDefinitions != null && FieldDefinitions.Count > 0)
             {
                 GetExistingFields();
@@ -104,11 +109,16 @@ namespace IQAppProvisioningBaseClasses.Provisioning
             }
         }
 
+        public void DeleteAll(ClientContext ctx)
+        {
+            DeleteAll(ctx, ctx.Web);
+        }
+
         public void GetExistingFields()
         {
             _existingFields = new List<string>();
 
-            var fields = _ctx.Web.AvailableFields;
+            var fields = _targetWeb.AvailableFields;
 
             _ctx.Load(fields,
                 f => f.Include
@@ -121,7 +131,7 @@ namespace IQAppProvisioningBaseClasses.Provisioning
 
         public void GetExistingFields(string group)
         {
-            var fields = _ctx.Web.AvailableFields;
+            var fields = _targetWeb.AvailableFields;
 
             _ctx.Load(fields,
                 f => f.Include

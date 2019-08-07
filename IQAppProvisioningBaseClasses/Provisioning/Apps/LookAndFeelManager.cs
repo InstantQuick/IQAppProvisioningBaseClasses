@@ -51,6 +51,19 @@ namespace IQAppProvisioningBaseClasses.Provisioning
                     GetThemeUrlPart(lookAndFeel.CurrentComposedLook.FieldValues.FirstOrDefault(fv => fv.FieldName == "ImageUrl")?.Value, web);
                 valuesToApply.FontSchemeUrl =
                     GetThemeUrlPart(lookAndFeel.CurrentComposedLook.FieldValues.FirstOrDefault(fv => fv.FieldName == "FontSchemeUrl")?.Value, web);
+
+                if (valuesToApply.ThemeUrl != null)
+                {
+                    valuesToApply.ThemeUrl = ReplaceUrlTokens(web, valuesToApply.ThemeUrl);
+                }
+                if (valuesToApply.ImageUrl != null)
+                {
+                    valuesToApply.ImageUrl = ReplaceUrlTokens(web, valuesToApply.ImageUrl);
+                }
+                if (valuesToApply.FontSchemeUrl != null)
+                {
+                    valuesToApply.FontSchemeUrl = ReplaceUrlTokens(web, valuesToApply.FontSchemeUrl);
+                }
             }
 
             return valuesToApply;

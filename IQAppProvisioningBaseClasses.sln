@@ -5,6 +5,8 @@ VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IQAppProvisioningBaseClasses", "IQAppProvisioningBaseClasses\IQAppProvisioningBaseClasses.csproj", "{E9667BA1-F246-423D-B3E1-661F60BC6BB9}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{CDF76BAF-6BD9-4B27-B86B-0F14FD2D1418}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		CloudKhanPublish|Any CPU = CloudKhanPublish|Any CPU
